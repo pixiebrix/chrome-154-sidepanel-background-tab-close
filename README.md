@@ -57,6 +57,14 @@ There is no global side panel (`side_panel.default_path` is not set) and no cont
 
 So the trigger is closing a background tab that has its own tab-specific side panel options while another tab's panel is open.
 
+## Suspected cause (not bisected)
+
+From reading the source, this likely came in with [CL 7894790](https://chromium-review.googlesource.com/c/chromium/src/+/7894790), "Reference-count extension side panel action item" (merged 2026-08-18, first in 154), the fix for [issue 522127453](https://issues.chromium.org/issues/522127453):
+
+- `ExtensionSidePanelCoordinator` now deregisters a tab's contextual entry when that tab is about to be deleted, while the tab is still attached to its window.
+- `SidePanelRegistry::Deregister` then closes the side panel if `IsSidePanelEntryShowing(key, for_tab)` is true.
+- `SidePanelUIBase::IsSidePanelEntryShowing` compares the entry key and whether the showing entry is tab-scoped, but not which tab it belongs to. Every tab-scoped entry for one extension shares the same key, so deregistering tab B's entry closes tab A's panel.
+
 ## Impact
 
 Extensions that open side panels per tab lose the user's open panel whenever they close another tab from the tab strip. Users have to reopen the panel manually each time.
